@@ -1,0 +1,53 @@
+# Hide VM Identification in VMWare (Stealthy)
+
+Tested using [WorkStation Pro](https://www.vmware.com/products/workstation-pro.html) 16.x, Windows host and guest in UEFI mode, using an Intel CPU.
+
+1. Create a Windows 10 VM.
+2. Edit VM settings [Processor section](https://i.imgur.com/nMaN01l.png). Enable (tick) these:
+    - Virtualize Intel VT-x/AMD-V
+    - Virtualize CPU Performance Counters
+    - Virtualize IOMMU
+3. Install Windows 10 in VM.
+4. Optionally install VMWare tools for some performance gains or features.
+5. *Clean* shutdown Windows 10 VM.
+
+Manually edit the VMX file. Add the lines below. If already present, simply change the value. VMWare will rearrange the order once the VM is booted.
+
+- `mce.enable = "TRUE"` Enables Machine Check Exception (MCE). Helpful to find errors in a VM.
+- `vhu.enable = "TRUE"` Enables nested virtualization
+- `SMBIOS.reflectHost = "TRUE"` Enables host to guest hardware reflection.
+- `hypervisor.cpuid.v0 = "FALSE"` Removes the CPU flag `-hypervisor` thus the OS thinks it is not running in a virtualized environment.
+
+Power on VM. Check Task Manager. If your task manager looks like the image on the left, something went wrong or you made a mistake. Try again. If your task manager looks like the image on the right, your VM status is masked.
+
+
+You can also change device names with `regedit` under `HKEY_LOCAL_MACHINE\SYSTEM\ControlSet001\Enum` to appear as a real device in Device Manager. Jim Browning has a [simple tutorial video](https://youtu.be/6TM45vNI4Qc?t=91). While this isn't a thourough demonstration, it shows you what to do. You should rename every device that includes the words "VMWare" or "Virtual". You can even go a step further and edit the `.inf` files that corrolate to the driver. Windows pulls some information from this file to display provider, date and version. To find the INF name, double click the device in Device Manager. Click the *Details* tab. Select *Inf name* in the *Property* drop down menu. You'll find the file at `C:\Windows\INF`.
+
+*However*, there are other ways to check for a VM. Software that wants to determine if you are, can still do it by other means. This method takes care of most common detection methods. VMWare, and other VM software for that matter, stamp devices as vritual at a low level. There are so many ways to detect if an OS is isolated virtually. You can try the tools and methods below if you need more hardening against detection.
+
+- http://www.trapkit.de/tools/scoopyng/
+- https://sectechno.com/sems-anti-sandbox-anti-virtual-machine-detection-tool/
+- https://www.vmray.com/cyber-security-blog/a-pafish-primer/
+
+## Other VMs
+
+No I do not know how to do this with other VMs nor do I care to invest time trying them. If you use VBox, QEMU, Fusion, Parallels or KVM, you'll have to figure that out on your own. I'm sure Google can help.
+
+## Warnings
+
+**DO NOT** use the above method to test unstrusted software. If you want to do this, don't install VMWare guest tools, you need to disable (untick) the performance options first...
+
+- Virtualize Intel VT-x/AMD-V
+- Virtualize CPU Performance Counters
+- Virtualize IOMMU
+
+...and then manually edit the VMX file. Add the lines below.
+```
+monitor_control.virtual_rdtsc = "FALSE"
+monitor_control.restrict_backdoor = "TRUE"
+isolation.tools.getPtrLocation.disable = "TRUE"
+isolation.tools.setPtrLocation.disable = "TRUE"
+isolation.tools.setVersion.disable = "TRUE"
+isolation.tools.getVersion.disable = "TRUE"
+isolation.tools.hgfs.disable = "TRUE"
+```
